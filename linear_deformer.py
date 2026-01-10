@@ -290,6 +290,10 @@ class DrawHandler():
 		end_p1 = bpy_extras.view3d_utils.location_3d_to_region_2d( self.m_region, self.m_rv3d, self.m_toolState.end_point + dist_ends )
 		end_p2 = bpy_extras.view3d_utils.location_3d_to_region_2d( self.m_region, self.m_rv3d, self.m_toolState.end_point - dist_ends )
 
+		line_primitive = 'LINE_STRIP'
+		if bpy.app.version >= (5, 0, 0):
+			line_primitive = 'LINE_LOOP'
+			
 		if start_2d and end_2d and end_p1 and end_p2:
 			gpu.state.line_width_set( LINE_WIDTH_SIZE )
 			gpu.state.point_size_set( ENDPOINT_HANDLE_SIZE )
@@ -305,6 +309,9 @@ class DrawHandler():
 				coords.append( ( start_2d[ 0 ], start_2d[ 1 ] ) )
 				coords.append( ( end_p1[ 0 ], end_p1[ 1 ] ) )
 				coords.append( ( end_p2[ 0 ], end_p2[ 1 ] ) )
+				coords.append( ( start_2d[ 0 ], start_2d[ 1 ] ) )
+
+				batch = batch_for_shader( self.m_shader2d, 'LINE_STRIP', { 'pos': coords } )
 				
 			elif self.m_toolState.quadratic_easing == QUADRATIC_EASING_IN:
 				cross = ( end_p2 - end_p1 ) * 0.5
@@ -317,6 +324,8 @@ class DrawHandler():
 					t = float( n - i ) / float( n )
 					coords.append( start_2d + ( vec * rmlib.util.EaseOutCircular( t ) - cross * t ) )
 
+				batch = batch_for_shader( self.m_shader2d, line_primitive, { 'pos': coords } )
+
 			elif self.m_toolState.quadratic_easing == QUADRATIC_EASING_OUT:
 				cross = ( end_p2 - end_p1 ) * 0.5
 				vec = end_2d - start_2d
@@ -328,7 +337,8 @@ class DrawHandler():
 					t = float( n - i ) / float( n )
 					coords.append( start_2d + ( vec * rmlib.util.EaseInCircular( t ) - cross * t ) )
 
-			batch = batch_for_shader( self.m_shader2d, 'LINE_LOOP', { 'pos': coords } )
+				batch = batch_for_shader( self.m_shader2d, line_primitive, { 'pos': coords } )
+
 			self.m_shader2d.bind()
 			self.m_shader2d.uniform_float( 'color', ( 0.0, 0.5, 0.99, 1.0 ) )
 			batch.draw( self.m_shader2d )
